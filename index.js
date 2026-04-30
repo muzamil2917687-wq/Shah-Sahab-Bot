@@ -1,10 +1,9 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const pino = require('pino');
-const readline = require('readline');
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const question = (text) => new Promise((resolve) => rl.question(text, resolve));
+// Shah Sahab ki Personal Key
+const genAI = new GoogleGenerativeAI("AIzaSyDu_WJZEJth6feEhpCPPKKdm0ytSJHlo3Y"); 
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
@@ -18,20 +17,31 @@ async function startBot() {
         browser: ["Ubuntu", "Chrome", "20.0.04"]
     });
 
-    if (!sock.authState.creds.registered) {
-        const phoneNumber = "16575201143"; // Tumhara number set kar diya
-        setTimeout(async () => {
-            let code = await sock.requestPairingCode(phoneNumber);
-            code = code?.match(/.{1,4}/g)?.join("-") || code;
-            console.log('\x1b[32m%s\x1b[0m', `TUMHARA PAIRING CODE HEI: ${code}`);
-        }, 3000);
-    }
-
     sock.ev.on('creds.update', saveCreds);
+
     sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect } = update;
+        const { connection } = update;
         if (connection === 'close') startBot();
-        if (connection === 'open') console.log('Shah Sahab Online!');
+        if (connection === 'open') console.log('Shah Sahab Online Hain!');
+    });
+
+    sock.ev.on('messages.upsert', async m => {
+        const msg = m.messages[0];
+        if (!msg.message || msg.key.fromMe) return;
+        
+        const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
+        if (!text) return;
+
+        try {
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const prompt = `Tumhara naam Shah Sahab hai. Tum aik sakht lehjay walay lekin aqalmand bot ho. Muzamil tumhara malik hai. Jawab Roman Urdu mein do. User ka sawal: ${text}`;
+            
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            await sock.sendMessage(msg.key.remoteJid, { text: response.text() });
+        } catch (e) {
+            console.log("Gemini Error:", e.message);
+        }
     });
 }
 startBot();
