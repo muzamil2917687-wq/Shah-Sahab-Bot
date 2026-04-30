@@ -1,8 +1,13 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const pino = require('pino');
+const readline = require('readline');
 
-// Shah Sahab ki Personal Key
+// Terminal se number maangne ke liye
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+const question = (text) => new Promise((resolve) => rl.question(text, resolve));
+
+// Shah Sahab ki Gemini Key
 const genAI = new GoogleGenerativeAI("AIzaSyDu_WJZEJth6feEhpCPPKKdm0ytSJHlo3Y"); 
 
 async function startBot() {
@@ -17,12 +22,28 @@ async function startBot() {
         browser: ["Ubuntu", "Chrome", "20.0.04"]
     });
 
+    // Pairing Code System (Agar login na ho)
+    if (!sock.authState.creds.registered) {
+        console.log("-----------------------------------------");
+        const phoneNumber = "16575201143"; // Tumhara number
+        setTimeout(async () => {
+            let code = await sock.requestPairingCode(phoneNumber);
+            code = code?.match(/.{1,4}/g)?.join("-") || code;
+            console.log('\x1b[32m%s\x1b[0m', `TUMHARA PAIRING CODE HEI: ${code}`);
+            console.log("-----------------------------------------");
+        }, 3000);
+    }
+
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', (update) => {
-        const { connection } = update;
-        if (connection === 'close') startBot();
-        if (connection === 'open') console.log('Shah Sahab Online Hain!');
+        const { connection, lastDisconnect } = update;
+        if (connection === 'close') {
+            const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            if (shouldReconnect) startBot();
+        } else if (connection === 'open') {
+            console.log('\x1b[36m%s\x1b[0m', 'Shah Sahab Online Hain!');
+        }
     });
 
     sock.ev.on('messages.upsert', async m => {
@@ -44,4 +65,5 @@ async function startBot() {
         }
     });
 }
+
 startBot();
