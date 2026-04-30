@@ -1,7 +1,10 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, delay } = require('@whiskeysockets/baileys');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const qrcode = require('qrcode-terminal');
 const pino = require('pino');
+const readline = require('readline');
+
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+const question = (text) => new Promise((resolve) => rl.question(text, resolve));
 
 // Shah Sahab ki Gemini Key
 const genAI = new GoogleGenerativeAI("AIzaSyD..."); 
@@ -10,9 +13,17 @@ async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
     const sock = makeWASocket({
         auth: state,
-        printQRInTerminal: true,
+        printQRInTerminal: false, // QR code band kar diya
         logger: pino({ level: 'silent' })
     });
+
+    // Pairing Code System
+    if (!sock.authState.creds.registered) {
+        const phoneNumber = await question('Apna WhatsApp Number dalo (Country code ke sath, e.g., 923001234567): ');
+        const code = await sock.requestPairingCode(phoneNumber.trim());
+        console.log('\x1b[32m%s\x1b[0m', `TUMHARA PAIRING CODE: ${code}`);
+        console.log('WhatsApp -> Linked Devices -> Link with phone number instead par ja kar ye code dalo.');
+    }
 
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', (update) => {
