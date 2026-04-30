@@ -1,0 +1,14 @@
+{
+  "name": "shah-sahab-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@whiskeysockets/baileys": "latest",
+    "@google/generative-ai": "latest",
+    "qrcode-terminal": "latest",
+    "pino": "latest"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
